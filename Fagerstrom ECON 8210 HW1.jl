@@ -1,4 +1,4 @@
-#Matthew J. Fagerstrom, 21 October 2024.
+#Matthew J. Fagerstrom, 31 October 2024.
 #This file executes all the computations for the first homework for ECON 8210.
 
 #Remember to instantiate the packages!
@@ -80,6 +80,17 @@ println(integral_trapezoid)
 println(error_trapezoid)
 println(time_trapezoid)
 
+sol_trap = zeros(4,4)
+
+for i ∈ 1:4
+    sol_trap[i, 1] = partition[i]
+    sol_trap[i, 2] = time_trapezoid[i]
+    sol_trap[i, 3] = integral_trapezoid[i]
+    sol_trap[i, 4] = error_trapezoid[i]
+end
+
+sol_trap
+
 #Simpsons Rule
 
 #Pre-allocate solution vectors
@@ -104,6 +115,17 @@ println(integral_simpsons)
 println(error_simpsons)
 println(time_simpsons)
 
+sol_simp = zeros(4,4)
+
+for i ∈ 1:4
+    sol_simp[i, 1] = partition[i]
+    sol_simp[i, 2] = time_simpsons[i]
+    sol_simp[i, 3] = integral_simpsons[i]
+    sol_simp[i, 4] = error_simpsons[i]
+end
+
+sol_simp
+
 #Monte Carlo
 
 #set seed
@@ -126,7 +148,16 @@ println(sol_mc)
 println(error_mc)
 println(time_mc)
 
+ans_mc = zeros(4,4)
 
+for i ∈ 1:4
+    ans_mc[i, 1] = partition[i]
+    ans_mc[i, 2] = time_mc[i]
+    ans_mc[i, 3] = sol_mc[i]
+    ans_mc[i, 4] = error_mc[i]
+end
+
+ans_mc
 
 ###Problem Three###
 #define the Function
@@ -214,6 +245,8 @@ ans_BFGS = optimize(f, z, BFGS(); autodiff = :forward)
 end
 
 ans_BFGS
+
+ans_BFGS.minimizer
 
 sol_BFGS = f(ans_BFGS.minimizer[1], ans_BFGS.minimizer[2])
 
@@ -354,7 +387,9 @@ function solve_social_planner(m, n, α, ω, λ, tot_endow)
     return value.(x)
 end
 
-num_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+time_sp = @elapsed begin
+    num_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+end
 
 function compute_obj(α, ω, λ, x)
     sol = sum(λ .* (α .* (x .^ (1 .+ ω)) ./ (1 .+ ω)))
@@ -363,6 +398,8 @@ end
 
 sol_an = compute_obj(α, ω, λ, x_sol)
 sol_num = compute_obj(α, ω, λ, num_sol)
+
+error_num = norm(sol_an-sol_num)
 
 #try new parameters
 α = zeros(m, n)
@@ -380,14 +417,17 @@ endow = zeros(m, n)
 ω[:, 3] = [-2, -2, -0.5]
 
 #set pareto weights
-λ[1, :] = [1/3 1/3 1/3]
+λ[1, :] = [1/6 1/2 1/3]
 
 endow[:, 1] = [16, 4, 4]
 endow[:, 2] = [4, 16, 4]
 endow[:, 3] = [4, 4, 16]
 
-changed_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+time_het = @elapsed begin
+    changed_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+end
 
+changed_sol
 
 #m=n=10
 m = 10
@@ -411,7 +451,9 @@ endow[diagind(endow)] .= 17
 
 tot_endow = define_tot_endow(m, n, endow)
 
-big_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+time_big = @elapsed begin
+    big_sol = solve_social_planner(m, n, α, ω, λ, tot_endow)
+end
 
 ###Problem Five###
 
@@ -483,14 +525,20 @@ nlsolve(f!, p, autodiff = :forward)
 function solve_excess_demand(p)
     excess_func = zeros(m)
     for j in 1:n
-     excess_func = excess_func + ((p .* α[:,j]).^(1 ./ ω[:, j]) .* (sum(p .* endow[:, j]) ./ sum(((1 .+ ω[:,j]) ./ (ω[:,j])) .* (1 ./ α[:, j]).^(1 ./ω[:, j]) .* p .^( (1 .+ ω[:, j]) ./ ω[:,j]) .- (p ./ α[:, j]).^(1 ./ ω[:,j]) .* (1 ./ ω[:, j]))) .- endow[:, j])
+     excess_func += ((p .* α[:,j]).^(1 ./ ω[:, j]) .* (sum(p .* endow[:, j]) ./ sum(((1 .+ ω[:,j]) ./ (ω[:,j])) .* (1 ./ α[:, j]).^(1 ./ω[:, j]) .* p .^( (1 .+ ω[:, j]) ./ ω[:,j]) .- (p ./ α[:, j]).^(1 ./ ω[:,j]) .* (1 ./ ω[:, j]))) .- endow[:, j])
     end
     return excess_func
 end
 
-ans = nlsolve(solve_excess_demand, p, autodiff = :forward)
+time_ans = @elapsed begin
+    flex_ans = nlsolve(solve_excess_demand, p, autodiff = :forward)
+end
 
-p_num = ans.zero
+p_num = flex_ans.zero
+
+p_an = [1.0,1.0,1.0]
+
+error_p = norm(p_num - p_an)
 
 #find allocations
 
@@ -569,6 +617,10 @@ end
 
 ss = solve_steady_state(0.0, β, α, δ, 0.25)
 
+ss_high = solve_steady_state(0.0673, β, α, δ, 0.2)
+
+l_ss_high = ss_high[3]
+
 println(ss)
 
 k_ss = ss[1]
@@ -582,8 +634,8 @@ ss_u = (log(ss[2]) + 0.2 * log(ss[7]) - (ss[3]^2)/2)
 
 #Create Grid
 #Grid lengths
-KL = 25
-IL = 5
+KL = 50
+IL = 11
 
 k_grid = LinRange(0.7*k_ss, 1.3*k_ss, KL)
 i_grid = LinRange(0.5*i_ss, 1.5*i_ss, IL)
@@ -592,43 +644,9 @@ grid_k = collect(k_grid)
 
 grid_i = collect(i_grid)
 
-wage(z, k, l, α) = (1-α).*exp(z).*k.^(α).*l.^(-α)
+lb = grid_i[1] - 0.0001
+ub = grid_i[11] + 0.0001
 
-rents(z, k, l, α) = (α).*exp(z).*k.^(α-1).*l.^(1-α)
-
-budget(z, k, l, α, τ,) = (1-τ).*wage(z,k,l,α).*l .+ rents(z,k,l,α).*k
-
-prod(z, k, l, α) = exp(z).*k.^(α).*l.^(1-α)
-
-invest(kp, k, i, i_l, δ) = kp .- (δ.*k .- (0.05 .*(i ./i_l .-1).^2).*i)
-
-kp(k, i, i_l, δ) = δ .* k + (1-0.05(i ./ i_l .- 1).^2).*i
-
-gov(τ, z, k, l, α) = τ.*wage(z, k, l, α).*l
-
-cons(kp, k, i, i_l, δ, τ, z, l, α) = prod(z, k, l, α) .- invest(kp, k, i, i_l, δ) .- gov(τ, z, k, l, α) 
-
-p_u(kp, k, i, i_l, δ, τ, z, l, α) = log(cons(kp, k, i, i_l, δ, τ, z, l, α)) .+ 0.2 .* log(gov(τ, z, k, l, α)) .- (l^2)/(2)
-
-calc_u = p_u(ss[1], ss[1], ss[4], ss[4], δ, 0.25, 0, ss[3], α)
-
-ss_u ≈ calc_u
-
-calc_cons = cons(ss[1], ss[1], ss[4], ss[4], δ, 0.25, 0, ss[3], α)
-
-calc_cons ≈ ss[2]
-
-(0.75)*wage(0,ss[1],ss[3],α)*ss[3] .+ rents(0, ss[1], ss[3], α)*ss[1] .- invest(ss[1], ss[1], ss[4], ss[4], δ)
-
-gov(0.25, 0, ss[1], ss[3], α)
-
-ss[7]
-
-ss[2]
-
-wage(0, ss[1], ss[3], α)
-
-kpol = zeros(KL, IL, 5, 3)
 lpol = zeros(KL, IL, 5, 3)
 ipol = zeros(KL, IL, 5, 3)
 v = zeros(KL, IL, 5, 3)
@@ -671,57 +689,34 @@ v = zeros(KL, IL, 5, 3)
 
 #u(x; k, w, r, τ) = log.((1-τ) .*w .* x[2] .+ r .* k .- x[1]) .- ((x[2].^2) ./ 2)
 
-
-ss_l = ((ss[4]-ss[6]*ss[1])+((ss[6]*ss[1]-ss[4])^2+4*((1-0.25)*ss[5])^2)^(1/2))/(2*(1-0.25)*ss[5])
-
-ss_l ≈ ss[3]
-
-l(i,k,τ,w,r) = ((i-r*k)+((r*k-i)^2+4*((1-τ)*w)^2)^(1/2))/(2*(1-τ)*w)
-
-l(ss[4],ss[1],0.25,ss[5],ss[6])
-
 function expect_v(x, c, d, i0, k, grid_z, grid_τ, grid_k, grid_i, v)
-    v_func = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v, extrapolation_bc=Line())
+    vn = -1 * v
+    v_func = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), vn, extrapolation_bc=Line())
     expect = 0
-    for e ∈ 1:5
-        for f ∈ 1:3
-            zp = grid_z[e]
-            τp = grid_τ[f]
+    for (e, zp) ∈ enumerate(grid_z)
+        for (f, τp) ∈ enumerate(grid_τ)
             kp = (δ * k + (1.0 - 0.05*((x[1] / i0 - 1)^2))*x[1])
-            val = v_func(kp, x[1], zp, τp)
-            expect += (z_trans[c, e] * τ_trans[d, f] * (val))
+            expect += (z_trans[c, e] * τ_trans[d, f] * (v_func(kp, x[1], zp, τp)))
         end
     end
     return (expect)
 end
 
-function l(x, r, k, τ, w) 
-    l = (((x-r*k)+((r*k-x)^2+4*((1-τ)*w)^2)^(1/2))/(2*(1-τ)*w))
-    return(l)
-end
+ipol = ss[4] .+ zeros(KL, IL, 5, 3)
+lpol = ss[3] .+ zeros(KL, IL, 5, 3)
 
-
-function bellman(v_iter, grid_k, grid_i, grid_z, grid_τ, rpol, wpol)
-    v = v_iter
+function bellman(v, grid_k, grid_i, grid_z, grid_τ, ipol, lpol)
     Tv = zeros(KL, IL, 5, 3)
-    ipol = zeros(KL, IL, 5, 3)
-    lpol = zeros(KL, IL, 5, 3)
-    for a ∈ 1:KL
-        for b ∈ 1:IL
-            for c ∈ 1:5
-                for d ∈ 1:3
-                    r = rpol[a, b, c, d]
-                    w = wpol[a, b, c, d]
-                    k = grid_k[a]
-                    i0 = grid_i[b]
-                    z = grid_z[c]
-                    τ = grid_τ[d]
-                    lower = [0.0, 0.0]
-                    upper = [grid_i[IL], Inf]
-                    inner_optimizer = GradientDescent()
-                    f(x) = -1 * ((log(((1-τ) * w * x[2])  + r * k - x[1])) - (x[2]^2)/2 + 
+    for (a, k) ∈ enumerate(grid_k)
+        for (b, i0) ∈ enumerate(grid_i)
+            for (c, z) ∈ enumerate(grid_z)
+                for (d, τ) ∈ enumerate(grid_τ)
+                    lower = [lb, 0.5]
+                    upper = [ub, 2]
+                    inner_optimizer = BFGS(linesearch=LineSearches.BackTracking())
+                    f(x) = -1 * ((log(((1-τ)*((1-α)*exp(z)*k^(α)*x[2]^(-α))*x[2]) + ((α)*exp(z)*k^(α-1)*(x[2])^(1-α))*k - x[1])) - (x[2]^2)/2 + 
                     β * expect_v(x, c, d, i0, k, grid_z, grid_τ, grid_k, grid_i, v))
-                    x_i = [0.1, 1.0]
+                    x_i = [ipol[a,b,c,d],lpol[a,b,c,d]]
                     results = optimize(f, lower, upper, x_i, Fminbox(inner_optimizer))
                     Tv[a,b,c,d] = results.minimum
                     ipol[a,b,c,d] = results.minimizer[1]
@@ -733,170 +728,251 @@ function bellman(v_iter, grid_k, grid_i, grid_z, grid_τ, rpol, wpol)
     return (; v = Tv, ipol, lpol)
 end
 
-rpol = zeros(KL, IL, 5, 3)
-wpol = zeros(KL, IL, 5, 3)
-
-for a ∈ 1:KL
-    for b ∈ 1:IL
-        for c ∈ 1:5
-            for d ∈ 1:3
-                rpol[a,b,c,d] = (α)*exp(grid_z[c])*grid_k[a]^(α-1)*ss[3]^(1-α)
-            end
-        end
-    end
-end
-
-rpol
-
-for a ∈ 1:KL
-    for b ∈ 1:IL
-        for c ∈ 1:5
-            for d ∈ 1:3
-                wpol[a,b,c,d] = (1-α)*exp(grid_z[c])*grid_k[a]^(α)*ss[3]^(-α)
-            end
-        end
-    end
-end
-
-wpol
-
-wpol
-
 initial_v = zeros(KL, IL, 5, 3)
 
-time_bellman = @elapsed begin
-    results_bellman = bellman(initial_v, grid_k, grid_i, grid_z, grid_τ, rpol, wpol)
-end
-
-iv = results_bellman.v
-
-results_bellman.ipol
-
-results_bellman.lpol
-
-abs.(rpol - wpol)
-
-maximum(abs.(iv - initial_v))
-
-function solv_opt(iv, grid_k, grid_i, grid_z, grid_τ, rpol_old, wpol_old, tolerance = 1E-10, maxiter = 1000)
-    v_old = iv
-    normdiff = Inf
-    iter = 1
-    rpol = rpol_old
-    wpol = wpol_old
-    while normdiff > tolerance && iter <= maxiter
-        v_new = bellman(v_old, grid_k, grid_i, grid_z, grid_τ, rpol, wpol).v
-        normdiff = maximum(abs.(v_old - v_new))
-        v_old = v_new
-        iter = iter + 1
+for a ∈ 1:KL
+    for b ∈ 1:IL
+        for c ∈ 1:5
+            for d ∈ 1:3
+                initial_v[a,b,c,d] = β/(1-β) * (log(((1-grid_τ[d])*((1-α)*exp(grid_z[c])*grid_k[a]^(α)*ss[3]^(-α))*ss[3]) + ((α)*exp(grid_z[c])*grid_k[a]^(α-1)*(ss[3])^(1-α))*grid_k[a] - grid_i[b]) - (ss[3]^2)/2)
+            end
+        end
     end
-    out = bellman(v_old, grid_k, grid_i, grid_z, grid_τ, rpol, wpol)
-    ipol = out.ipol
-    return (; value = v_old, ipol, normdiff, iter)
 end
 
-initial_v[24,3,2,2]
+initial_v[13,6,3,2]
+
+initial_v = -1 .* initial_v
+
+time_bellman = @elapsed begin
+    results_bellman = bellman(initial_v, grid_k, grid_i, grid_z, grid_τ, ipol, lpol)
+end
+
+iv_new = results_bellman.v
+
+iv_new[13,6,3,2]
+
+ipol_init = results_bellman.ipol
+
+lpol_init = results_bellman.lpol
+
+maximum(abs.(iv_new - initial_v))
+
+function solv_opt(initial_v, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init; iterations = 100, m=3, show_trace=false)
+    results = fixedpoint( v -> bellman(v, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init).v, initial_v; iterations, m, show_trace)
+    v_star = results.zero
+    res = bellman(v_star, grid_k, grid_i, grid_z, grid_τ, ipol, lpol)
+    ipol_star = res.ipol
+    lpol_star = res.lpol
+    return (; value = v_star, ipol_star, lpol_star, results)
+end
 
 time_opt = @elapsed begin
-   sol_opt = solv_opt(iv, grid_k, grid_i, grid_z, grid_τ, rpol, wpol)
+   sol_opt = solv_opt(initial_v, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init)
 end
 
-iv = sol_opt.value
+sol_opt.results.iterations
 
-ipol = sol_opt.ipol
+sol_opt.results.residual_norm
 
-check = bellman(sol_opt.value, grid_k, grid_i, grid_z, grid_τ, rpol, wpol).v
+v_star_small = sol_opt.value
 
-itercheck = sol_opt.iter
+i_star = sol_opt.ipol_star
 
-check ≈ sol_opt.value
+l_star = sol_opt.lpol_star
 
-initial_r = zeros(KL, IL, 5, 3)
+time_opt = @elapsed begin
+    sol_opt = solv_opt(v_star_small, grid_k, grid_i, grid_z, grid_τ, i_star, l_star)
+end
+
+sol_opt.results.iterations
+
+sol_opt.results.residual_norm
+
+v_star_small = sol_opt.value
+
+i_star = sol_opt.ipol_star
+
+l_star = sol_opt.lpol_star
+
+v_star = v_star_small * -1
+
+v_out_func = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+
+v_out_fix(i,k) = v_out_func.(k,i,0.0,0.25)
+
+v_plot= plot(grid_i,grid_k,v_out_fix,st=:surface, fmt = :pdf)
+savefig(v_plot, "v_plot.pdf")
+
+
+#can we scale up?
+v_func_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+ipol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), i_star, extrapolation_bc=Line())
+lpol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), l_star, extrapolation_bc=Line())
+
+KL = 100
+IL = 25
+
+k_grid = LinRange(0.7*k_ss, 1.3*k_ss, KL)
+i_grid = LinRange(0.5*i_ss, 1.5*i_ss, IL)
+
+grid_k = collect(k_grid)
+
+grid_i = collect(i_grid)
+
+lpol_init = zeros(KL, IL, 5, 3)
 
 for a ∈ 1:KL
     for b ∈ 1:IL
         for c ∈ 1:5
             for d ∈ 1:3
-                initial_r[a,b,c,d] = (α)*exp(grid_z[c])*grid_k[a]^(α-1)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(1-α)
+                lpol_init[a,b,c,d] = lpol_iter(grid_k[a],grid_i[b],grid_z[c],grid_τ[d])
             end
         end
     end
 end
 
-initial_w = zeros(KL, IL, 5, 3)
+typeof(lpol_init)
+
+ipol_init = zeros(KL, IL, 5, 3)
 
 for a ∈ 1:KL
     for b ∈ 1:IL
         for c ∈ 1:5
             for d ∈ 1:3
-                initial_w[a,b,c,d] = (1-α)*exp(grid_z[c])*grid_k[a]^(α)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(-α)
+                ipol_init[a,b,c,d] = ipol_iter(grid_k[a], grid_i[b], grid_z[c], grid_τ[d])
             end
         end
     end
 end
 
+typeof(ipol_init)
 
-function solve_w_r(initial_w, initial_r, initial_v; grid_k, grid_i, grid_z, grid_τ, outer_tol = 1E-10, outer_maxiter = 1000)
-    rpol_old = initial_r
-    wpol_old = initial_w
-    v_old = initial_v
-    outer_iter = 1
-    outer_diff = Inf
-    while outer_diff > outer_tol && outer_iter <= outer_maxiter
-        sol_opt = solv_opt(v_old, grid_k, grid_i, grid_z, grid_τ, rpol_old, wpol_old)
-        ipol = sol_opt.ipol
-        wpol_new = zeros(KL, IL, 5, 3)
-        rpol_new = zeros(KL, IL, 5, 3)
-        for a ∈ 1:KL
-            for b ∈ 1:IL
-                for c ∈ 1:5
-                    for d ∈ 1:3
-                        wpol_new[a,b,c,d] = (1-α)*exp(grid_z[c])*grid_k[a]^(α)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(-α)
-                    end
-                end
-            end
-        end
-        for a ∈ 1:KL
-            for b ∈ 1:IL
-                for c ∈ 1:5
-                    for d ∈ 1:3
-                        rpol_new[a,b,c,d] = (α)*exp(grid_z[c])*grid_k[a]^(α-1)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(1-α)
-                    end
-                end
-            end
-        end
-        outer_diff = max(maximum(abs.(wpol_old - wpol_new)), maximum(abs.(rpol_old - wpol_new)))
-        wpol_adj = 0.8 .* wpol_old
-        wpol_old = wpol_adj .+ 0.2 .* wpol_new
-        rpol_adj = 0.8 .* rpol_old
-        rpol_old = rpol_adj .+ 0.2 .* rpol_new
-        v_new = sol_opt.value
-        v_old = v_new
-        outer_iter = outer_iter + 1
-    end
-    out = bellman(v_old, grid_k, grid_i, grid_z, grid_τ, rpol_old, wpol_old)
-    ipol = out.ipol
-    for a ∈ 1:KL
-        for b ∈ 1:IL
-            for c ∈ 1:5
-                for d ∈ 1:3
-                    wpol_final[a,b,c,d] = (1-α)*exp(grid_z[c])*grid_k[a]^(α)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(-α)
-                end
+v_init = zeros(KL, IL, 5, 3)
+
+for a ∈ 1:KL
+    for b ∈ 1:IL
+        for c ∈ 1:5
+            for d ∈ 1:3
+                v_init[a,b,c,d] = v_func_iter(grid_k[a], grid_i[b],grid_z[c],grid_τ[d])
             end
         end
     end
-    for a ∈ 1:KL
-        for b ∈ 1:IL
-            for c ∈ 1:5
-                for d ∈ 1:3
-                    rpol_final[a,b,c,d] = (α)*exp(grid_z[c])*grid_k[a]^(α-1)*max(0.000001,l(ipol[a,b,c,d],grid_k[a],grid_τ[d],wpol[a,b,c,d],rpol[a,b,c,d]))^(1-α)
-                end
-            end
-        end
-    end 
-    return (; value = v_old, ipol, wpol_final, rpol_final, outer_diff, outer_iter)
 end
 
-time_solwr = @elapsed begin
-    sol_wr = solve_w_r(initial_w, initial_r, iv; grid_k, grid_i, grid_z, grid_τ, outer_tol = 1E-7, outer_maxiter = 1000)
+typeof(v_init)
+
+time_opt = @elapsed begin
+    sol_opt = solv_opt(v_init, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init)
 end
+
+sol_opt.results.iterations
+
+sol_opt.results.residual_norm
+
+v_star_small = sol_opt.value
+
+i_star = sol_opt.ipol_star
+
+l_star = sol_opt.lpol_star
+
+v_star = v_star_small * -1
+
+v_out_func = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+
+v_out_fix(i,k) = v_out_func.(k,i,0.0,0.25)
+
+v_plot2= plot(grid_i,grid_k,v_out_fix,st=:surface, fmt = :pdf)
+savefig(v_plot, "v_plot2.pdf")
+
+t = 51
+T = LinRange(0, 50, 51)
+T = collect(T)
+
+kpath = zeros(t)
+
+kpath[1] = ss[1]
+
+v_func_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+ipol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), i_star, extrapolation_bc=Line())
+lpol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), l_star, extrapolation_bc=Line())
+
+ipath = zeros(t)
+
+ipath[1] = ss[4]
+
+kpath[2] = (δ * kpath[1] + (1.0 - 0.05*((ipol_iter(kpath[1], ipath[1], 0.0, 0.25) / ipath[1] - 1)^2))*ipol_iter(kpath[1],ipath[1], 0.0, 0.3))
+
+
+
+for i ∈ 3:t
+    kpath[i] = (δ * kpath[i-1] + (1.0 - 0.05*((ipol_iter(kpath[i-1], ipath[i-1], 0.0, 0.25) / ipath[i-1] - 1)^2))*ipol_iter(kpath[i-1],ipath[i-1], 0.0, 0.25))
+    ipath[i] = ipol_iter(kpath[i-1], ipath[i-1], 0.0, 0.25)
+end
+
+
+lpath = zeros(t)
+cpath = zeros(t)
+
+lpath[1] = ss[3]
+lpath[2] = lpol_iter(kpath[1], ipath[1], 0.0, 0.3)
+
+cpath[1] = (((1-0.25)*((1-α)*exp(0.0)*kpath[1]^(α)*lpath[1]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[1]^(α-1)*(lpath[1])^(1-α))*kpath[1] - ipath[1])
+cpath[2] = (((1-0.3)*((1-α)*exp(0.0)*kpath[2]^(α)*lpath[2]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[2]^(α-1)*(lpath[2])^(1-α))*kpath[2] - ipath[2])
+
+for i ∈ 3:t
+    lpath[i] = lpol_iter(kpath[i-1], ipath[i-1], 0.0, 0.25)
+    cpath[i] = (((1-0.25)*((1-α)*exp(0.0)*kpath[i]^(α)*lpath[i]^(-α))*lpath[i]) + ((α)*exp(0.0)*kpath[i]^(α-1)*(lpath[i])^(1-α))*kpath[i] - ipath[i])
+end
+
+kplot = plot(kpath, T, fmt = :pdf)
+savefig(kplot, "kplot.pdf")
+iplot = plot(ipath, T, fmt = :pdf)
+savefig(iplot, "iplot.pdf")
+lplot = plot(lpath, T, fmt = :pdf)
+savefig(lplot, "lplot.pdf")
+cplot = plot(cpath, T, fmt = :pdf)
+savefig(cplot, "cplot.pdf")
+
+
+kpathz = zeros(t)
+
+kpathz[1] = ss[1]
+
+ipathz = zeros(t)
+
+ipathz[1] = ss[4]
+
+kpathz[2] = (δ * kpathz[1] + (1.0 - 0.05*((ipol_iter(kpathz[1], ipathz[1], 0.0, 0.25) / ipathz[1] - 1)^2))*ipol_iter(kpathz[1],ipathz[1], 0.0673, 0.25))
+
+ipathz[2] = ipol_iter(kpathz[1], ipathz[1], 0.0673, 0.25)
+
+
+for i ∈ 3:t
+    kpathz[i] = (δ * kpathz[i-1] + (1.0 - 0.05*((ipol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25) / ipathz[i-1] - 1)^2))*ipol_iter(kpathz[i-1],ipathz[i-1], 0.0, 0.25))
+    ipathz[i] = ipol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25)
+end
+
+
+lpathz = zeros(t)
+cpathz = zeros(t)
+
+lpathz[1] = ss[3]
+lpathz[2] = lpol_iter(kpathz[1], ipathz[1], 0.0673, 0.25)
+
+cpathz[1] = (((1-0.25)*((1-α)*exp(0.0)*kpathz[1]^(α)*lpathz[1]^(-α))*lpathz[1]) + ((α)*exp(0.0)*kpathz[1]^(α-1)*(lpathz[1])^(1-α))*kpathz[1] - ipathz[1])
+cpathz[2] = (((1-0.25)*((1-α)*exp(0.0673)*kpathz[2]^(α)*lpathz[2]^(-α))*lpathz[1]) + ((α)*exp(0.0673)*kpathz[2]^(α-1)*(lpathz[2])^(1-α))*kpathz[2] - ipathz[2])
+
+for i ∈ 3:t
+    lpathz[i] = lpol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25)
+    cpathz[i] = (((1-0.25)*((1-α)*exp(0.0)*kpathz[i]^(α)*lpathz[i]^(-α))*lpathz[i]) + ((α)*exp(0.0)*kpathz[i]^(α-1)*(lpathz[i])^(1-α))*kpathz[i] - ipathz[i])
+end
+
+kplotz = plotz(kpathz, T, fmt = :pdf)
+savefig(kplotz, "kplotz.pdf")
+iplotz = plotz(ipathz, T, fmt = :pdf)
+savefig(iplotz, "iplotz.pdf")
+lplotz = plotz(lpathz, T, fmt = :pdf)
+savefig(lplotz, "lplotz.pdf")
+cplotz = plotz(cpathz, T, fmt = :pdf)
+savefig(cplotz, "cplotz.pdf")
