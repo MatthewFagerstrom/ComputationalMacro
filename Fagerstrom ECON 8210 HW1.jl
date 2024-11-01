@@ -635,7 +635,7 @@ ss_u = (log(ss[2]) + 0.2 * log(ss[7]) - (ss[3]^2)/2)
 #Create Grid
 #Grid lengths
 KL = 50
-IL = 11
+IL = 20
 
 k_grid = LinRange(0.7*k_ss, 1.3*k_ss, KL)
 i_grid = LinRange(0.5*i_ss, 1.5*i_ss, IL)
@@ -768,7 +768,7 @@ function solv_opt(initial_v, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_in
 end
 
 time_opt = @elapsed begin
-   sol_opt = solv_opt(initial_v, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init)
+   sol_opt = solv_opt(iv_new, grid_k, grid_i, grid_z, grid_τ, ipol_init, lpol_init)
 end
 
 sol_opt.results.iterations
@@ -804,6 +804,147 @@ v_out_fix(i,k) = v_out_func.(k,i,0.0,0.25)
 v_plot= plot(grid_i,grid_k,v_out_fix,st=:surface, fmt = :pdf)
 savefig(v_plot, "v_plot.pdf")
 
+
+t = 500
+T = LinRange(0, t, t+1)
+T = collect(T)
+
+kpath = zeros(t)
+
+v_func_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+ipol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), i_star, extrapolation_bc=Line())
+lpol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), l_star, extrapolation_bc=Line())
+
+kpath[1] = (δ * ss[1] + (1.0 - 0.05*((ipol_iter(ss[1], ss[4], 0.0, 0.25) / ss[4] - 1)^2))*ipol_iter(ss[1],ss[4], 0.0, 0.25))
+
+ipath = zeros(t)
+
+ipath[1] = ipol_iter(ss[1], ss[4], 0.0, 0.25)
+
+kpath[2] = (δ * kpath[1] + (1.0 - 0.05*((ipol_iter(kpath[1], ipath[1], 0.0, 0.25) / ipath[1] - 1)^2))*ipol_iter(kpath[1],ipath[1], 0.0, 0.25))
+
+ipath[2] = ipol_iter(kpath[1], ipath[1], 0.0, 0.25)
+
+for i ∈ 3:t
+    j = i - 1
+    kpath[i] = (δ * kpath[j] + (1.0 - 0.05*((ipol_iter(kpath[j], ipath[j], 0.0, 0.25) / ipath[j] - 1)^2))*ipol_iter(kpath[j],ipath[j], 0.0, 0.25))
+    ipath[i] = ipol_iter(kpath[j], ipath[j], 0.0, 0.25)
+end
+
+lpath = zeros(t)
+cpath = zeros(t)
+
+lpath[1] = ss[3]
+lpath[2] = lpol_iter(kpath[1], ipath[1], 0.0, 0.25)
+
+cpath[1] = (((1-0.25)*((1-α)*exp(0.0)*kpath[1]^(α)*lpath[1]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[1]^(α-1)*(lpath[1])^(1-α))*kpath[1] - ipath[1])
+cpath[2] = (((1-0.25)*((1-α)*exp(0.0)*kpath[2]^(α)*lpath[2]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[2]^(α-1)*(lpath[2])^(1-α))*kpath[2] - ipath[2])
+
+for i ∈ 3:t
+    lpath[i] = lpol_iter(kpath[i-1], ipath[i-1], 0.0, 0.25)
+    cpath[i] = (((1-0.25)*((1-α)*exp(0.0)*kpath[i]^(α)*lpath[i]^(-α))*lpath[i]) + ((α)*exp(0.0)*kpath[i]^(α-1)*(lpath[i])^(1-α))*kpath[i] - ipath[i])
+end
+
+kpath
+
+k_long = kpath[500]
+
+i_long = ipath[500]
+
+l_long = lpath[500]
+
+t = 100
+T = LinRange(0, t, t+1)
+T = collect(T)
+
+kpath = zeros(t+1)
+
+v_func_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
+ipol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), i_star, extrapolation_bc=Line())
+lpol_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), l_star, extrapolation_bc=Line())
+
+kpath[1] = (δ * k_long + (1.0 - 0.05*((ipol_iter(k_long, i_long, 0.0, 0.25) / i_long - 1)^2))*ipol_iter(k_long,i_long, 0.0, 0.25))
+
+ipath = zeros(t+1)
+
+ipath[1] = ipol_iter(k_long, i_long, 0.0, 0.25)
+
+kpath[2] = (δ * kpath[1] + (1.0 - 0.05*((ipol_iter(kpath[1], ipath[1], 0.0, 0.25) / ipath[1] - 1)^2))*ipol_iter(kpath[1],ipath[1], 0.0, 0.3))
+
+ipath[2] = ipol_iter(kpath[1], ipath[1], 0.0, 0.3)
+
+for i ∈ 3:t+1
+    j = i - 1
+    kpath[i] = (δ * kpath[j] + (1.0 - 0.05*((ipol_iter(kpath[j], ipath[j], 0.0, 0.25) / ipath[j] - 1)^2))*ipol_iter(kpath[j],ipath[j], 0.0, 0.25))
+    ipath[i] = ipol_iter(kpath[j], ipath[j], 0.0, 0.25)
+end
+
+lpath = zeros(t+1)
+cpath = zeros(t+1)
+
+lpath[1] = l_long
+lpath[2] = lpol_iter(kpath[1], ipath[1], 0.0, 0.3)
+
+cpath[1] = (((1-0.25)*((1-α)*exp(0.0)*kpath[1]^(α)*lpath[1]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[1]^(α-1)*(lpath[1])^(1-α))*kpath[1] - ipath[1])
+cpath[2] = (((1-0.3)*((1-α)*exp(0.0)*kpath[2]^(α)*lpath[2]^(-α))*lpath[1]) + ((α)*exp(0.0)*kpath[2]^(α-1)*(lpath[2])^(1-α))*kpath[2] - ipath[2])
+
+for i ∈ 3:t+1
+    lpath[i] = lpol_iter(kpath[i-1], ipath[i-1], 0.0, 0.25)
+    cpath[i] = (((1-0.25)*((1-α)*exp(0.0)*kpath[i]^(α)*lpath[i]^(-α))*lpath[i]) + ((α)*exp(0.0)*kpath[i]^(α-1)*(lpath[i])^(1-α))*kpath[i] - ipath[i])
+end
+
+
+kplot = plot(T, kpath, fmt = :pdf)
+savefig(kplot, "kplot.pdf")
+iplot = plot(T, ipath, fmt = :pdf)
+savefig(iplot, "iplot.pdf")
+lplot = plot(T, lpath, fmt = :pdf)
+savefig(lplot, "lplot.pdf")
+cplot = plot(T, cpath, fmt = :pdf)
+savefig(cplot, "cplot.pdf")
+
+
+kpathz = zeros(t+1)
+
+kpathz[1] = k_long
+
+ipathz = zeros(t+1)
+
+ipathz[1] = i_long
+
+kpathz[2] = (δ * kpathz[1] + (1.0 - 0.05*((ipol_iter(kpathz[1], ipathz[1], 0.0673, 0.25) / ipathz[1] - 1)^2))*ipol_iter(kpathz[1],ipathz[1], 0.0673, 0.25))
+
+ipathz[2] = ipol_iter(kpathz[1], ipathz[1], 0.0673, 0.25)
+
+
+for i ∈ 3:t+1
+    kpathz[i] = (δ * kpathz[i-1] + (1.0 - 0.05*((ipol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25) / ipathz[i-1] - 1)^2))*ipol_iter(kpathz[i-1],ipathz[i-1], 0.0, 0.25))
+    ipathz[i] = ipol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25)
+end
+
+
+lpathz = zeros(t+1)
+cpathz = zeros(t+1)
+
+lpathz[1] = l_long
+lpathz[2] = lpol_iter(kpathz[1], ipathz[1], 0.0673, 0.25)
+
+cpathz[1] = (((1-0.25)*((1-α)*exp(0.0)*kpathz[1]^(α)*lpathz[1]^(-α))*lpathz[1]) + ((α)*exp(0.0)*kpathz[1]^(α-1)*(lpathz[1])^(1-α))*kpathz[1] - ipathz[1])
+cpathz[2] = (((1-0.25)*((1-α)*exp(0.0673)*kpathz[2]^(α)*lpathz[2]^(-α))*lpathz[1]) + ((α)*exp(0.0673)*kpathz[2]^(α-1)*(lpathz[2])^(1-α))*kpathz[2] - ipathz[2])
+
+for i ∈ 3:t+1
+    lpathz[i] = lpol_iter(kpathz[i-1], ipathz[i-1], 0.0, 0.25)
+    cpathz[i] = (((1-0.25)*((1-α)*exp(0.0)*kpathz[i]^(α)*lpathz[i]^(-α))*lpathz[i]) + ((α)*exp(0.0)*kpathz[i]^(α-1)*(lpathz[i])^(1-α))*kpathz[i] - ipathz[i])
+end
+
+kplotz = plot(T, kpathz, fmt = :pdf)
+savefig(kplotz, "kplotz.pdf")
+iplotz = plot(T, ipathz, fmt = :pdf)
+savefig(iplotz, "iplotz.pdf")
+lplotz = plot(T, lpathz, fmt = :pdf)
+savefig(lplotz, "lplotz.pdf")
+cplotz = plot(T, cpathz, fmt = :pdf)
+savefig(cplotz, "cplotz.pdf")
 
 #can we scale up?
 v_func_iter = LinearInterpolation((grid_k, grid_i, grid_z, grid_τ), v_star, extrapolation_bc=Line())
